@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarRange, Filter, MapPin, SlidersHorizontal, Star, TicketPercent } from "lucide-react";
+import { ArrowRight, CalendarRange, Filter, MapPin, SlidersHorizontal, Star, TicketPercent, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { airports, defaultSearchState, flightOffers, type FlightOffer } from "@/lib/flight-data";
 import { formatCurrency, formatDate, getDurationLabel } from "@/lib/utils";
@@ -13,11 +13,27 @@ export default function SearchPage() {
   const [selectedFlight, setSelectedFlight] = useState<string | null>(flightOffers[0]?.id ?? null);
   const [cabinFilter, setCabinFilter] = useState<string>("All");
   const [maxPrice, setMaxPrice] = useState<number>(1500000);
+  
+  // Search form state
+  const [fromAirport, setFromAirport] = useState<string>(defaultSearchState.from);
+  const [toAirport, setToAirport] = useState<string>(defaultSearchState.to);
+  const [departureDate, setDepartureDate] = useState<string>("2026-01-15");
+  const [passengers, setPassengers] = useState<number>(1);
+  const [showSearchForm, setShowSearchForm] = useState<boolean>(false);
 
   const visibleFlights = useMemo(() => {
     let results = [...flightOffers];
 
+    // Filter by route
+    results = results.filter((flight) => flight.origin === fromAirport && flight.destination === toAirport);
+
+    // Filter by date
+    results = results.filter((flight) => flight.departureAt.startsWith(departureDate));
+
+    // Filter by price
     results = results.filter((flight) => flight.finalPrice <= maxPrice);
+    
+    // Filter by cabin
     if (cabinFilter !== "All") results = results.filter((flight) => flight.cabin === cabinFilter);
 
     switch (sortBy) {
@@ -39,7 +55,7 @@ export default function SearchPage() {
     }
 
     return results;
-  }, [cabinFilter, maxPrice, sortBy]);
+  }, [cabinFilter, maxPrice, sortBy, fromAirport, toAirport, departureDate]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -47,15 +63,90 @@ export default function SearchPage() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
         <div className="rounded-3xl bg-[#0b1f44] p-6 text-white shadow-lg">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">Flight search</p>
-              <h1 className="mt-2 text-3xl font-bold">{defaultSearchState.from} to {defaultSearchState.to}</h1>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">Flight search</p>
+                <h1 className="mt-2 text-3xl font-bold">{fromAirport} to {toAirport}</h1>
+              </div>
+              <button
+                onClick={() => setShowSearchForm(!showSearchForm)}
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/20 px-4 py-2 transition"
+              >
+                <Search className="h-4 w-4" />
+                Modify Search
+              </button>
             </div>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <button className="rounded-full bg-white/10 px-4 py-2">Round trip</button>
-              <button className="rounded-full border border-white/20 px-4 py-2">15 Jan - 22 Jan</button>
-            </div>
+
+            {showSearchForm && (
+              <div className="border-t border-white/20 pt-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200 block mb-2">From</label>
+                    <select
+                      value={fromAirport}
+                      onChange={(e) => setFromAirport(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50"
+                    >
+                      {airports.map((airport) => (
+                        <option key={airport.code} value={airport.code} className="bg-slate-900">
+                          {airport.code} - {airport.city}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200 block mb-2">To</label>
+                    <select
+                      value={toAirport}
+                      onChange={(e) => setToAirport(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50"
+                    >
+                      {airports.map((airport) => (
+                        <option key={airport.code} value={airport.code} className="bg-slate-900">
+                          {airport.code} - {airport.city}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200 block mb-2">Departure</label>
+                    <input
+                      type="date"
+                      value={departureDate}
+                      onChange={(e) => setDepartureDate(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200 block mb-2">Passengers</label>
+                    <select
+                      value={passengers}
+                      onChange={(e) => setPassengers(Number(e.target.value))}
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50"
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((num) => (
+                        <option key={num} value={num} className="bg-slate-900">
+                          {num} {num === 1 ? "Passenger" : "Passengers"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => setShowSearchForm(false)}
+                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg px-4 py-2 transition"
+                    >
+                      Search
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
